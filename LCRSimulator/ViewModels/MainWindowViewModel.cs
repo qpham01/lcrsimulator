@@ -66,25 +66,11 @@ public class MainWindowViewModel : ViewModelBase
         set { _gameCount = value; OnPropertyChanged("GameCount"); }
     }
 
-    private ObservableCollection<Image> _playerImageCollection = new ObservableCollection<Image>();
-    public ObservableCollection<Image> PlayerImageCollection
+    private ObservableCollection<PlayerViewModel> _playerViewModels = new ObservableCollection<PlayerViewModel>();
+    public ObservableCollection<PlayerViewModel> PlayerViewModels
     {
-        get { return _playerImageCollection; }
-        set { _playerImageCollection = value; OnPropertyChanged("PlayerImageCollection"); }
-    }
-
-    private ObservableCollection<Image> _textImageCollection = new ObservableCollection<Image>();
-    public ObservableCollection<Image> TextImageCollection
-    {
-        get { return _textImageCollection; }
-        set { _textImageCollection = value; OnPropertyChanged("TextImageCollection"); }
-    }
-
-    private ObservableCollection<string> _playerIndexCollection = new ObservableCollection<string>();
-    public ObservableCollection<string> PlayerIndexCollection
-    {
-        get { return _playerIndexCollection; }
-        set { _playerIndexCollection = value; OnPropertyChanged("PlayerIndexCollection"); }
+        get { return _playerViewModels; }
+        set { _playerViewModels = value; OnPropertyChanged("PlayerViewModel"); }
     }
 
     public MainWindowViewModel()
@@ -106,21 +92,15 @@ public class MainWindowViewModel : ViewModelBase
 
     private void UpdatePlayerImages(int playerCount, int winnerIndex)
     {
-        PlayerImageCollection.Clear();
-        PlayerIndexCollection.Clear();
-        TextImageCollection.Clear();
+        PlayerViewModels.Clear();
         for (var i = 0; i < playerCount; ++i)
         {
             var image = new Image();
             image.Source = i == winnerIndex ? _winnerImageSource : _playerImageSource;
-            PlayerImageCollection.Add(image);
-            PlayerIndexCollection.Add((i + 1).ToString());
             var text = new Image();
             text.Source = i == winnerIndex ? _winnerTextImageSource : _blankTextImageSource;
-            TextImageCollection.Add(text);
+            PlayerViewModels.Add(new PlayerViewModel(image, text, (i + 1).ToString()));
         }
-        OnPropertyChanged("PlayerIndexCollection");
-        OnPropertyChanged("PlayerIndexCollection");
-        OnPropertyChanged("TextImageCollection");
+        OnPropertyChanged("PlayerViewModels");
     }
 }
