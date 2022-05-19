@@ -14,7 +14,7 @@
     <Window.Resources>
         <helpers:InverseBooleanConverter x:Key="InverseBooleanConverterKey"/>
     </Window.Resources>
-    <Grid>
+    <Grid Name="ClientGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240"/>
             <ColumnDefinition/>

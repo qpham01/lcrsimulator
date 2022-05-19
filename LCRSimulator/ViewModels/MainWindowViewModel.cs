@@ -4,6 +4,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Legends;
 using OxyPlot.Series;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -25,6 +26,8 @@ public class MainWindowViewModel : ViewModelBase
     private ImageSource _winnerTextImageSource;
     private List<LCRGame> _games = new List<LCRGame>();
     private BackgroundWorker _simulationWorker;
+    private const double _yExtent = 1.1;
+    private const double _xExtent = 1.05;
 
     public int PlayerRowHeight => 150;
 
@@ -274,7 +277,7 @@ public class MainWindowViewModel : ViewModelBase
         var averageSeries = new LineSeries
         {
             Title = "Average",
-            ItemsSource = new List<DataPoint> { new DataPoint(0, average), new DataPoint(GamesSimulated, average) },        
+            ItemsSource = new List<DataPoint> { new DataPoint(0, average), new DataPoint(GamesSimulated * _xExtent, average) },
             DataFieldX = "Time",
             DataFieldY = "Value",
             Color = OxyColor.Parse("#4CAF50"),
@@ -287,8 +290,8 @@ public class MainWindowViewModel : ViewModelBase
         };
         model.Series.Add(averageSeries);
 
-        model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 1.1 * max, Title = "Turns" });
-        model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = GamesSimulated * 1.05, Title = "Games" });
+        model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = max * _yExtent, Title = "Turns" });
+        model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = GamesSimulated * _xExtent, Title = "Games" });
 
         var legend = new Legend
         {
@@ -302,7 +305,6 @@ public class MainWindowViewModel : ViewModelBase
             LegendSymbolPlacement = LegendSymbolPlacement.Left,
         };
         model.Legends.Add(legend);
-
         Model = model;
     }
 
