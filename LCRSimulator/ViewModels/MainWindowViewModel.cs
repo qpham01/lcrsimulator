@@ -1,5 +1,9 @@
 ﻿using LCRLogic;
 using LCRSimulator.Helpers;
+using OxyPlot;
+using OxyPlot.Axes;
+using OxyPlot.Legends;
+using OxyPlot.Series;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -113,6 +117,12 @@ public class MainWindowViewModel : ViewModelBase
         set { _isSimulating = value; OnPropertyChanged("IsSimulating"); }
     }
 
+    private PlotModel _model;
+    public PlotModel Model
+    {
+        get { return _model; }
+        set { _model = value; OnPropertyChanged("Model"); }
+    }
 
     public ICommand PlayCommand { get; private set; }
     public ICommand CancelCommand { get; private set; }
@@ -211,6 +221,89 @@ public class MainWindowViewModel : ViewModelBase
             }
         }
         IsSimulating = false;
+
+        var model = new PlotModel();
+        var lineData = new List<DataPoint>();
+        var scatterData = new List<ScatterPoint>();
+        var min = int.MaxValue;
+        var max = int.MinValue;
+        var total = 0;
+        for (var i = 0; i < GamesSimulated; ++i)
+        {
+            var game = _games[i];
+            var point = new DataPoint(i + 1, game.TurnCount);
+            var scatter = new ScatterPoint(i + 1, game.TurnCount);
+            if (game.TurnCount > max) max = game.TurnCount;
+            if (game.TurnCount < min) min = game.TurnCount;
+            total += game.TurnCount;
+            lineData.Add(point);
+            scatterData.Add(scatter);
+        }
+        var lineSeries = new LineSeries
+        {
+            Title = "Game",
+            ItemsSource = lineData,
+            DataFieldX = "Game Index",
+            DataFieldY = "Turn Count",
+            Color = OxyColor.Parse("#AF4C50"),
+            MarkerSize = 3,
+            MarkerFill = OxyColor.Parse("#AF4C50"),
+            MarkerStroke = OxyColor.Parse("#AF4C50"),
+            MarkerStrokeThickness = 1.5,
+            MarkerType = MarkerType.Circle,
+            StrokeThickness = 1,
+        };
+        var scatterSeries = new ScatterSeries
+        {
+            Title = "Game",
+            ItemsSource = scatterData,
+            DataFieldX = "Game Index",
+            DataFieldY = "Turn Count",
+            MarkerSize = 3,
+            MarkerFill = OxyColor.Parse("#AF4C50"),
+            MarkerStroke = OxyColor.Parse("#AF4C50"),
+            MarkerStrokeThickness = 1.5,
+            MarkerType = MarkerType.Circle,
+        };
+
+        // TODO: Get decision on line or scatter plot.
+        // model.Series.Add(lineSeries);
+        model.Series.Add(scatterSeries);
+
+        var average = (double)total / (double)GamesSimulated;
+        var averageSeries = new LineSeries
+        {
+            Title = "Average",
+            ItemsSource = new List<DataPoint> { new DataPoint(0, average), new DataPoint(GamesSimulated, average) },        
+            DataFieldX = "Time",
+            DataFieldY = "Value",
+            Color = OxyColor.Parse("#4CAF50"),
+            MarkerSize = 0,
+            MarkerFill = OxyColor.Parse("#FFFFFFFF"),
+            MarkerStroke = OxyColor.Parse("#4CAF50"),
+            MarkerStrokeThickness = 0,
+            MarkerType = MarkerType.Circle,
+            StrokeThickness = 1,
+        };
+        model.Series.Add(averageSeries);
+
+        model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 1.1 * max, Title = "Turns" });
+        model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = GamesSimulated * 1.05, Title = "Games" });
+
+        var legend = new Legend
+        {
+            LegendBorder = OxyColors.Black,
+            LegendBackground = OxyColor.FromAColor(200, OxyColors.White),
+            LegendPosition = LegendPosition.TopRight,
+            LegendPlacement = LegendPlacement.Inside,
+            LegendOrientation = LegendOrientation.Vertical,
+            LegendItemOrder = LegendItemOrder.Normal,
+            LegendItemAlignment = OxyPlot.HorizontalAlignment.Left,
+            LegendSymbolPlacement = LegendSymbolPlacement.Left,
+        };
+        model.Legends.Add(legend);
+
+        Model = model;
     }
 
 }
