@@ -4,7 +4,7 @@
     {
         LCRPlayer? Winner { get; }
         int TurnCount { get; }
-        void StartGame(int playercCount);
+        void PlayGame(int playercCount);
         bool IsWinner(LCRPlayer player);
     }
 
@@ -28,7 +28,7 @@
             _dice = dice;        
         }
 
-        public void StartGame(int playerCount)
+        public void PlayGame(int playerCount)
         {
             Winner = null;
             _turnCount = 0;

@@ -1,9 +1,12 @@
 ﻿using LCRLogic;
-using System;
+using LCRSimulator.Helpers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace LCRSimulator.ViewModels;
@@ -17,6 +20,7 @@ public class MainWindowViewModel : ViewModelBase
     private ImageSource _blankTextImageSource;
     private ImageSource _winnerTextImageSource;
     private List<LCRGame> _games = new List<LCRGame>();
+    private BackgroundWorker _simulationWorker;
 
     public int PlayerRowHeight => 150;
 
@@ -73,8 +77,54 @@ public class MainWindowViewModel : ViewModelBase
         set { _playerViewModels = value; OnPropertyChanged("PlayerViewModel"); }
     }
 
+    private int _gamesSimulated;
+    public int GamesSimulated
+    {
+        get { return _gamesSimulated; }
+        private set
+        {
+            if (_gamesSimulated != value)
+            {
+                _gamesSimulated = value;
+                OnPropertyChanged("GamesSimulated");
+            }
+        }
+    }
+
+    private int _currentProgress;
+    public int CurrentProgress
+    {
+        get { return _currentProgress; }
+        private set
+        {
+            if (_currentProgress != value)
+            {
+                _currentProgress = value;
+                OnPropertyChanged("CurrentProgress");
+            }
+        }
+    }
+
+
+    private bool _isSimulating;
+    public bool IsSimulating 
+    {
+        get { return _isSimulating; }
+        set { _isSimulating = value; OnPropertyChanged("IsSimulating"); }
+    }
+
+
+    public ICommand PlayCommand { get; private set; }
+    public ICommand CancelCommand { get; private set; }
+
     public MainWindowViewModel()
     {
+        _simulationWorker = new BackgroundWorker();
+        _simulationWorker.DoWork += Simulate;
+        _simulationWorker.ProgressChanged += ProgressChanged;
+        _simulationWorker.WorkerReportsProgress = true;
+        _simulationWorker.WorkerSupportsCancellation = true;
+
         var imageSourceConverter = new ImageSourceConverter();
         _playerImageSource = imageSourceConverter.ConvertFromString("pack://application:,,,/Images/player.png") as ImageSource;
         _winnerImageSource = imageSourceConverter.ConvertFromString("pack://application:,,,/Images/winner.png") as ImageSource;
@@ -88,6 +138,21 @@ public class MainWindowViewModel : ViewModelBase
             gamePresets.Add(preset);
         }
         GamePresets = gamePresets;
+
+        PlayCommand = new RelayCommand(x => StartSimulation(x));
+        CancelCommand = new RelayCommand(x => CancelSimulation(x));
+
+
+    }
+
+    private void CancelSimulation(object x)
+    {
+        IsSimulating = false;
+    }
+
+    private void StartSimulation(object x)
+    {
+        _simulationWorker.RunWorkerAsync();
     }
 
     private void UpdatePlayerImages(int playerCount, int winnerIndex)
@@ -103,4 +168,49 @@ public class MainWindowViewModel : ViewModelBase
         }
         OnPropertyChanged("PlayerViewModels");
     }
+    private void ProgressChanged(object? sender, ProgressChangedEventArgs? e)
+    {
+        if (e != null)
+            CurrentProgress = e.ProgressPercentage;
+    }
+
+    private async void Simulate(object? sender, DoWorkEventArgs? e)
+    {
+        IsSimulating = false;
+        if (!int.TryParse(GameCount, out var gameCount) || gameCount <= 0)
+        {
+            MessageBox.Show($"Invalid game count {gameCount}", "Error");
+            return;
+        }
+        if (!int.TryParse(PlayerCount, out var playerCount) || playerCount <= 0)
+        {
+            MessageBox.Show($"Invalid player count {playerCount}", "Error");
+            return;
+        }
+
+        _games.Clear();
+        for (var i = 0; i < gameCount; ++i)
+        {
+            _games.Add(new LCRGame(new LCRDice()));
+        }
+        IsSimulating = true;
+        GamesSimulated = 0;
+        CurrentProgress = 0;
+        var lastPercentage = 0;
+        while (GamesSimulated < gameCount && IsSimulating)
+        {
+            var game = _games[GamesSimulated];
+            game.PlayGame(playerCount);
+            GamesSimulated++;
+            var percentCompleted = GamesSimulated * 1000 / gameCount ;            
+            _simulationWorker.ReportProgress(percentCompleted);
+            if (percentCompleted > lastPercentage)
+            {
+                lastPercentage = percentCompleted;
+                Thread.Sleep(1);
+            }
+        }
+        IsSimulating = false;
+    }
+
 }
