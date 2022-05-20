@@ -333,12 +333,7 @@ public class MainWindowViewModel : ViewModelBase
             MarkerStroke = _minColor,
             MarkerStrokeThickness = 1,
             MarkerType = MarkerType.Circle,
-        };
-
-        // TODO: Get decision on line or scatter plot.
-        // model.Series.Add(lineSeries);
-        model.Series.Add(_lineSeries);
-
+        };        
         var average = (double)total / (double)GamesSimulated;
         var minX = -GamesSimulated * (_xExtent - 1);
         var maxX = GamesSimulated * _xExtent;
@@ -353,6 +348,8 @@ public class MainWindowViewModel : ViewModelBase
             MarkerSize = 0,
             StrokeThickness = _averageThickness,
         };
+
+        model.Series.Add(_lineSeries);
         model.Series.Add(averageSeries);
         model.Series.Add(maxSeries);
         model.Series.Add(minSeries);
