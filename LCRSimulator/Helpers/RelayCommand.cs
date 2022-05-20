@@ -2,6 +2,7 @@
 using System.Windows.Input;
 
 namespace LCRSimulator.Helpers;
+
 public class RelayCommand : ICommand
 {
     private Action<object> _execute;

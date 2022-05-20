@@ -256,7 +256,7 @@ public class MainWindowViewModel : ViewModelBase
             var game = _games[GamesSimulated];
             game.PlayGame(playerCount);
             GamesSimulated++;
-            var percentCompleted = GamesSimulated * 1000 / gameCount ;            
+            var percentCompleted = GamesSimulated * 1000 / gameCount;
             _simulationWorker.ReportProgress(percentCompleted);
             if (percentCompleted > lastPercentage)
             {
@@ -265,7 +265,11 @@ public class MainWindowViewModel : ViewModelBase
             }
         }
         IsSimulating = false;
+        UpdatePlot();
+    }
 
+    private void UpdatePlot()
+    {
         var model = new PlotModel();
         var lineData = new List<DataPoint>();
         var scatterData = new List<ScatterPoint>();
