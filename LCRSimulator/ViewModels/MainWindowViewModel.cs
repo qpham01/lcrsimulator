@@ -1,6 +1,7 @@
 ﻿using LCRLogic;
 using LCRSimulator.Helpers;
 using OxyPlot;
+using OxyPlot.Annotations;
 using OxyPlot.Axes;
 using OxyPlot.Legends;
 using OxyPlot.Series;
@@ -26,8 +27,6 @@ public class MainWindowViewModel : ViewModelBase
     private ImageSource _winnerTextImageSource;
     private List<LCRGame> _games = new List<LCRGame>();
     private BackgroundWorker _simulationWorker;
-    private const double _yExtent = 1.1;
-    private const double _xExtent = 1.05;
 
     public int PlayerRowHeight => 150;
 
@@ -66,7 +65,7 @@ public class MainWindowViewModel : ViewModelBase
                 _playerCount = "0";
             }
             OnPropertyChanged("PlayerCount"); 
-            UpdatePlayerImages(count, WinnerIndex); 
+            UpdatePlayerImages(count, -1); 
         }
     }
 
@@ -127,8 +126,34 @@ public class MainWindowViewModel : ViewModelBase
         set { _model = value; OnPropertyChanged("Model"); }
     }
 
+    private PlotController _controller;
+    public PlotController Controller
+    {
+        get { return _controller; }
+        set { _controller = value; OnPropertyChanged("Controller"); }
+    }
+
     public ICommand PlayCommand { get; private set; }
     public ICommand CancelCommand { get; private set; }
+    public DelegatePlotCommand<OxyMouseEventArgs> LeftMouseCommand { get; private set; }
+
+    private LineSeries _lineSeries;
+
+    private OxyColor _maxColor;
+    private OxyColor _minColor;
+    private OxyColor _gameColor;
+    private OxyColor _averageColor;
+
+    private const double _yExtent = 1.15;
+    private const double _xExtent = 1.1;
+    private const string _maxRgb = "#F9BB17";
+    private const string _minRgb = "#A21BCD";
+    private const string _gameRgb = "#E51021";
+    private const string _averageRgb = "#148F3E";
+    private const int _minMaxMarkerSize = 5;
+    private const int _averageThickness = 2;
+    private const int _lineThickness = 4;
+    private const double _annotationSize = 20;
 
     public MainWindowViewModel()
     {
@@ -154,9 +179,25 @@ public class MainWindowViewModel : ViewModelBase
 
         PlayCommand = new RelayCommand(x => StartSimulation(x));
         CancelCommand = new RelayCommand(x => CancelSimulation(x));
+        LeftMouseCommand = new DelegatePlotCommand<OxyMouseEventArgs>(HandleLeftMouseClick);
 
-
+        _maxColor = OxyColor.Parse(_maxRgb);
+        _minColor = OxyColor.Parse(_minRgb);
+        _gameColor = OxyColor.Parse(_gameRgb);
+        _averageColor = OxyColor.Parse(_averageRgb);
     }
+
+    private void HandleLeftMouseClick(IView view, IController controller, OxyMouseEventArgs eventArgs)
+    {
+        var point = _lineSeries.InverseTransform(eventArgs.Position);
+        var gameIndex = Math.Clamp((int)point.X, 0, GamesSimulated - 1);
+        var game = _games[gameIndex];
+        if (game.Winner != null)
+        {
+            UpdatePlayerImages(int.Parse(_playerCount), game.Winner.Index);
+        }            
+    }
+
 
     private void CancelSimulation(object x)
     {
@@ -230,68 +271,93 @@ public class MainWindowViewModel : ViewModelBase
         var scatterData = new List<ScatterPoint>();
         var min = int.MaxValue;
         var max = int.MinValue;
+        var maxIndex = -1;
+        var minIndex = -1;
         var total = 0;
         for (var i = 0; i < GamesSimulated; ++i)
         {
             var game = _games[i];
             var point = new DataPoint(i + 1, game.TurnCount);
             var scatter = new ScatterPoint(i + 1, game.TurnCount);
-            if (game.TurnCount > max) max = game.TurnCount;
-            if (game.TurnCount < min) min = game.TurnCount;
+            if (game.TurnCount > max)
+            {
+                max = game.TurnCount;
+                maxIndex = i;
+            }
+            if (game.TurnCount < min)
+            {
+                min = game.TurnCount;
+                minIndex = i;
+            } 
             total += game.TurnCount;
             lineData.Add(point);
             scatterData.Add(scatter);
         }
-        var lineSeries = new LineSeries
+        _lineSeries = new LineSeries
         {
             Title = "Game",
             ItemsSource = lineData,
             DataFieldX = "Game Index",
             DataFieldY = "Turn Count",
-            Color = OxyColor.Parse("#AF4C50"),
-            MarkerSize = 3,
-            MarkerFill = OxyColor.Parse("#AF4C50"),
-            MarkerStroke = OxyColor.Parse("#AF4C50"),
-            MarkerStrokeThickness = 1.5,
+            Color = _gameColor,
+            MarkerSize = 0,
             MarkerType = MarkerType.Circle,
-            StrokeThickness = 1,
+            StrokeThickness = _lineThickness,
         };
-        var scatterSeries = new ScatterSeries
+        var maxPoint = new ScatterPoint(maxIndex + 1, max);
+        var maxSeries = new ScatterSeries
         {
-            Title = "Game",
-            ItemsSource = scatterData,
+            Title = "Longest",
+            ItemsSource = new List<ScatterPoint> { maxPoint },
             DataFieldX = "Game Index",
             DataFieldY = "Turn Count",
-            MarkerSize = 3,
-            MarkerFill = OxyColor.Parse("#AF4C50"),
-            MarkerStroke = OxyColor.Parse("#AF4C50"),
-            MarkerStrokeThickness = 1.5,
+            MarkerSize = _minMaxMarkerSize,
+            MarkerFill = _maxColor,
+            MarkerStroke = _maxColor,
+            MarkerStrokeThickness = 1,
+            MarkerType = MarkerType.Circle,
+        };
+        var minPoint = new ScatterPoint(minIndex + 1, min);
+        var minSeries = new ScatterSeries
+        {
+            Title = "Shortest",
+            ItemsSource = new List<ScatterPoint> { minPoint } ,
+            DataFieldX = "Game Index",
+            DataFieldY = "Turn Count",
+            MarkerSize = _minMaxMarkerSize,
+            MarkerFill = _minColor,
+            MarkerStroke = _minColor,
+            MarkerStrokeThickness = 1,
             MarkerType = MarkerType.Circle,
         };
 
         // TODO: Get decision on line or scatter plot.
         // model.Series.Add(lineSeries);
-        model.Series.Add(scatterSeries);
+        model.Series.Add(_lineSeries);
 
         var average = (double)total / (double)GamesSimulated;
+        var minX = -GamesSimulated * (_xExtent - 1);
+        var maxX = GamesSimulated * _xExtent;
+
         var averageSeries = new LineSeries
         {
             Title = "Average",
-            ItemsSource = new List<DataPoint> { new DataPoint(0, average), new DataPoint(GamesSimulated * _xExtent, average) },
+            ItemsSource = new List<DataPoint> { new DataPoint(minX, average), new DataPoint(maxX, average) },
             DataFieldX = "Time",
             DataFieldY = "Value",
-            Color = OxyColor.Parse("#4CAF50"),
+            Color = _averageColor,
             MarkerSize = 0,
-            MarkerFill = OxyColor.Parse("#FFFFFFFF"),
-            MarkerStroke = OxyColor.Parse("#4CAF50"),
-            MarkerStrokeThickness = 0,
-            MarkerType = MarkerType.Circle,
-            StrokeThickness = 1,
+            StrokeThickness = _averageThickness,
         };
         model.Series.Add(averageSeries);
+        model.Series.Add(maxSeries);
+        model.Series.Add(minSeries);
 
-        model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = max * _yExtent, Title = "Turns" });
-        model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = GamesSimulated * _xExtent, Title = "Games" });
+        var yMin = Math.Min(min - 6, 0);
+
+        var yAxis = new LinearAxis { Position = AxisPosition.Left, Minimum = yMin, Maximum = max * _yExtent, Title = "Turns" };
+        model.Axes.Add(yAxis);
+        model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = minX, Maximum = maxX, Title = "Games" });
 
         var legend = new Legend
         {
@@ -305,7 +371,38 @@ public class MainWindowViewModel : ViewModelBase
             LegendSymbolPlacement = LegendSymbolPlacement.Left,
         };
         model.Legends.Add(legend);
+        var range = max - min;
+        var maxOffset = 0.03 * range;
+        var minOffset = 0.03 * range;
+        var labelMax = new TextAnnotation
+        {
+            Text = $"Longest ({max})",
+            FontSize = _annotationSize,
+            FontWeight = OxyPlot.FontWeights.Bold,
+            TextPosition = new DataPoint(maxIndex, max + maxOffset),
+            TextColor = _maxColor,
+            StrokeThickness = 0,
+            Stroke = OxyColor.FromArgb(0, 240, 240, 40)
+        };
+        var labelMin = new TextAnnotation
+        {
+            Text = $"Shortest ({min})",
+            FontSize = _annotationSize,
+            FontWeight = OxyPlot.FontWeights.Bold,
+            TextPosition = new DataPoint(minIndex, min + minOffset),
+            TextColor = _minColor,
+            StrokeThickness = 0,
+            Stroke = OxyColor.FromArgb(0, 240, 40, 240)
+        };
+        model.Annotations.Add(labelMax);
+        model.Annotations.Add(labelMin);
+
         Model = model;
+
+        var controller = new PlotController();
+        controller.UnbindAll();
+        controller.BindMouseDown(OxyMouseButton.Left, LeftMouseCommand);
+        Controller = controller;
     }
 
 }
